@@ -37,6 +37,7 @@ import java.util.function.Function;
 public record ChemicalWrapper<C extends Chemical<C>, S extends ChemicalStack<C>, I extends ChemicalStackIngredient<C, S>>(
 		String key,
 		ChemicalType type,
+
 		ResourceKey<? extends Registry<C>> registry,
 		IChemicalStackIngredientCreator<C, S, I> creator,
 		long defaultAmount,
@@ -48,7 +49,7 @@ public record ChemicalWrapper<C extends Chemical<C>, S extends ChemicalStack<C>,
 	public static final ChemicalWrapper<Gas, GasStack, ChemicalStackIngredient.GasStackIngredient> GAS = new ChemicalWrapper<>(
 			JsonConstants.GAS,
 			ChemicalType.GAS,
-			MekanismAPI.gasRegistryName(),
+			MekanismAPI.gasRegistry().getRegistryKey(),
 			IngredientCreatorAccess.gas(),
 			1000L,
 			Gas::getFromRegistry,
@@ -60,7 +61,7 @@ public record ChemicalWrapper<C extends Chemical<C>, S extends ChemicalStack<C>,
 	public static final ChemicalWrapper<InfuseType, InfusionStack, ChemicalStackIngredient.InfusionStackIngredient> INFUSE_TYPE = new ChemicalWrapper<>(
 			JsonConstants.INFUSE_TYPE,
 			ChemicalType.INFUSION,
-			MekanismAPI.infuseTypeRegistryName(),
+			MekanismAPI.infuseTypeRegistry().getRegistryKey(),
 			IngredientCreatorAccess.infusion(),
 			10L,
 			InfuseType::getFromRegistry,
@@ -72,7 +73,7 @@ public record ChemicalWrapper<C extends Chemical<C>, S extends ChemicalStack<C>,
 	public static final ChemicalWrapper<Pigment, PigmentStack, ChemicalStackIngredient.PigmentStackIngredient> PIGMENT = new ChemicalWrapper<>(
 			JsonConstants.PIGMENT,
 			ChemicalType.PIGMENT,
-			MekanismAPI.pigmentRegistryName(),
+			MekanismAPI.pigmentRegistry().getRegistryKey(),
 			IngredientCreatorAccess.pigment(),
 			1000L,
 			Pigment::getFromRegistry,
@@ -84,7 +85,7 @@ public record ChemicalWrapper<C extends Chemical<C>, S extends ChemicalStack<C>,
 	public static final ChemicalWrapper<Slurry, SlurryStack, ChemicalStackIngredient.SlurryStackIngredient> SLURRY = new ChemicalWrapper<>(
 			JsonConstants.SLURRY,
 			ChemicalType.SLURRY,
-			MekanismAPI.slurryRegistryName(),
+			MekanismAPI.slurryRegistry().getRegistryKey(), 
 			IngredientCreatorAccess.slurry(),
 			1000L,
 			Slurry::getFromRegistry,
@@ -94,138 +95,138 @@ public record ChemicalWrapper<C extends Chemical<C>, S extends ChemicalStack<C>,
 	);
 // @formatter:on
 
-	public static final ChemicalWrapper<?, ?, ?>[] VALUES = {GAS, INFUSE_TYPE, PIGMENT, SLURRY};
+    public static final ChemicalWrapper<?, ?, ?>[] VALUES = {GAS, INFUSE_TYPE, PIGMENT, SLURRY};
 
-	@Nullable
-	public static ChemicalWrapper<?, ?, ?> find(Map<?, ?> map) {
-		for (var wrapper : VALUES) {
-			if (map.containsKey(wrapper.key)) {
-				return wrapper;
-			}
-		}
+    @Nullable
+    public static ChemicalWrapper<?, ?, ?> find(Map<?, ?> map) {
+        for (var wrapper : VALUES) {
+            if (map.containsKey(wrapper.key)) {
+                return wrapper;
+            }
+        }
 
-		return null;
-	}
+        return null;
+    }
 
-	public I ingredient(String id, long amount) {
-		if (amount <= 0) {
-			amount = defaultAmount;
-		}
+    public I ingredient(String id, long amount) {
+        if (amount <= 0) {
+            amount = defaultAmount;
+        }
 
-		if (id.startsWith("#")) {
-			var tag = tag(id.substring(1));
-			return creator.from(tag, amount);
-		}
+        if (id.startsWith("#")) {
+            var tag = tag(id.substring(1));
+            return creator.from(tag, amount);
+        }
 
-		return creator.from(chemicalFromId.apply(new ResourceLocation(id)), amount);
-	}
+        return creator.from(chemicalFromId.apply(new ResourceLocation(id)), amount);
+    }
 
-	public S stack(String id, long amount) {
-		if (amount <= 0) {
-			amount = defaultAmount;
-		}
+    public S stack(String id, long amount) {
+        if (amount <= 0) {
+            amount = defaultAmount;
+        }
 
-		return (S) chemicalFromId.apply(new ResourceLocation(id)).getStack(amount);
-	}
+        return (S) chemicalFromId.apply(new ResourceLocation(id)).getStack(amount);
+    }
 
-	public TypeDescJS describe(DescriptionContext ctx) {
-		return TypeDescJS.STRING.or(ctx.javaType(chemicalType));
-	}
+    public TypeDescJS describe(DescriptionContext ctx) {
+        return TypeDescJS.STRING.or(ctx.javaType(chemicalType));
+    }
 
-	private TagKey<C> tag(String id) {
-		return tag(new ResourceLocation(id));
-	}
+    private TagKey<C> tag(String id) {
+        return tag(new ResourceLocation(id));
+    }
 
-	private TagKey<C> tag(ResourceLocation id) {
-		return TagKey.create(registry, id);
-	}
+    private TagKey<C> tag(ResourceLocation id) {
+        return TagKey.create(registry, id);
+    }
 
-	public record InputComponent<C extends Chemical<C>, S extends ChemicalStack<C>, I extends ChemicalStackIngredient<C, S>>(
-			ChemicalWrapper<C, S, I> wrapper) implements RecipeComponent<I> {
-		@Override
-		public ComponentRole role() {
-			return ComponentRole.INPUT;
-		}
+    public record InputComponent<C extends Chemical<C>, S extends ChemicalStack<C>, I extends ChemicalStackIngredient<C, S>>(
+            ChemicalWrapper<C, S, I> wrapper) implements RecipeComponent<I> {
+        @Override
+        public ComponentRole role() {
+            return ComponentRole.INPUT;
+        }
 
-		@Override
-		public Class<?> componentClass() {
-			return wrapper.ingredientType;
-		}
+        @Override
+        public Class<?> componentClass() {
+            return wrapper.ingredientType;
+        }
 
-		@Override
-		public JsonElement write(RecipeJS recipe, I value) {
-			return value.serialize();
-		}
+        @Override
+        public JsonElement write(RecipeJS recipe, I value) {
+            return value.serialize();
+        }
 
-		@Override
-		public TypeDescJS constructorDescription(DescriptionContext ctx) {
-			return TypeDescJS.object().add(wrapper.key, wrapper.describe(ctx)).add(JsonConstants.AMOUNT, TypeDescJS.NUMBER).or(wrapper.describe(ctx));
-		}
+        @Override
+        public TypeDescJS constructorDescription(DescriptionContext ctx) {
+            return TypeDescJS.object().add(wrapper.key, wrapper.describe(ctx)).add(JsonConstants.AMOUNT, TypeDescJS.NUMBER).or(wrapper.describe(ctx));
+        }
 
-		@Override
-		public I read(RecipeJS recipe, Object from) {
-			if (wrapper.ingredientType.isInstance(from)) {
-				return (I) from;
-			} else if (from instanceof CharSequence) {
-				return wrapper.ingredient(from.toString(), wrapper.defaultAmount);
-			} else if (from instanceof Map<?, ?> || from instanceof JsonObject) {
-				var map = MapJS.of(from);
+        @Override
+        public I read(RecipeJS recipe, Object from) {
+            if (wrapper.ingredientType.isInstance(from)) {
+                return (I) from;
+            } else if (from instanceof CharSequence) {
+                return wrapper.ingredient(from.toString(), wrapper.defaultAmount);
+            } else if (from instanceof Map<?, ?> || from instanceof JsonObject) {
+                var map = MapJS.of(from);
 
-				if (map != null) {
-					var id = map.get(wrapper.key());
-					var amount = map.containsKey(JsonConstants.AMOUNT) ? ((Number) map.get(JsonConstants.AMOUNT)).longValue() : wrapper.defaultAmount;
-					if (id != null) {
-						return wrapper.ingredient(id.toString(), amount);
-					} else {
-						if (map.containsKey(JsonConstants.TAG)) {
-							return wrapper.creator().from(wrapper.tag(map.get(JsonConstants.TAG).toString()), amount);
-						}
-					}
-				}
-			}
+                if (map != null) {
+                    var id = map.get(wrapper.key());
+                    var amount = map.containsKey(JsonConstants.AMOUNT) ? ((Number) map.get(JsonConstants.AMOUNT)).longValue() : wrapper.defaultAmount;
+                    if (id != null) {
+                        return wrapper.ingredient(id.toString(), amount);
+                    } else {
+                        if (map.containsKey(JsonConstants.TAG)) {
+                            return wrapper.creator().from(wrapper.tag(map.get(JsonConstants.TAG).toString()), amount);
+                        }
+                    }
+                }
+            }
 
-			return null;
-		}
-	}
+            return null;
+        }
+    }
 
-	public record OutputComponent<C extends Chemical<C>, S extends ChemicalStack<C>, I extends ChemicalStackIngredient<C, S>>(
-			ChemicalWrapper<C, S, I> wrapper) implements RecipeComponent<S> {
-		@Override
-		public ComponentRole role() {
-			return ComponentRole.OUTPUT;
-		}
+    public record OutputComponent<C extends Chemical<C>, S extends ChemicalStack<C>, I extends ChemicalStackIngredient<C, S>>(
+            ChemicalWrapper<C, S, I> wrapper) implements RecipeComponent<S> {
+        @Override
+        public ComponentRole role() {
+            return ComponentRole.OUTPUT;
+        }
 
-		@Override
-		public Class<?> componentClass() {
-			return wrapper.stackType;
-		}
+        @Override
+        public Class<?> componentClass() {
+            return wrapper.stackType;
+        }
 
-		@Override
-		public TypeDescJS constructorDescription(DescriptionContext ctx) {
-			return TypeDescJS.object().add(wrapper.key, wrapper.describe(ctx)).add(JsonConstants.AMOUNT, TypeDescJS.NUMBER).or(wrapper.describe(ctx));
-		}
+        @Override
+        public TypeDescJS constructorDescription(DescriptionContext ctx) {
+            return TypeDescJS.object().add(wrapper.key, wrapper.describe(ctx)).add(JsonConstants.AMOUNT, TypeDescJS.NUMBER).or(wrapper.describe(ctx));
+        }
 
-		@Override
-		public JsonElement write(RecipeJS recipe, S value) {
-			JsonObject json = new JsonObject();
-			json.addProperty(wrapper.key, value.getTypeRegistryName().toString());
-			json.addProperty(JsonConstants.AMOUNT, value.getAmount());
-			return json;
-		}
+        @Override
+        public JsonElement write(RecipeJS recipe, S value) {
+            JsonObject json = new JsonObject();
+            json.addProperty(wrapper.key, value.getTypeRegistryName().toString());
+            json.addProperty(JsonConstants.AMOUNT, value.getAmount());
+            return json;
+        }
 
-		@Override
-		public S read(RecipeJS recipe, Object from) {
-			if (wrapper.ingredientType.isInstance(from)) {
-				return (S) from;
-			} else if (from instanceof JsonObject || from instanceof Map<?, ?>) {
-				var json = MapJS.json(from);
-				var amount = json.has(JsonConstants.AMOUNT) ? json.get(JsonConstants.AMOUNT).getAsLong() : 0L;
-				return wrapper.stack(json.get(wrapper.key).getAsString(), amount);
-			} else if (from instanceof CharSequence) {
-				return wrapper.stack(from.toString(), wrapper.defaultAmount);
-			} else {
-				return null;
-			}
-		}
-	}
+        @Override
+        public S read(RecipeJS recipe, Object from) {
+            if (wrapper.ingredientType.isInstance(from)) {
+                return (S) from;
+            } else if (from instanceof JsonObject || from instanceof Map<?, ?>) {
+                var json = MapJS.json(from);
+                var amount = json.has(JsonConstants.AMOUNT) ? json.get(JsonConstants.AMOUNT).getAsLong() : 0L;
+                return wrapper.stack(json.get(wrapper.key).getAsString(), amount);
+            } else if (from instanceof CharSequence) {
+                return wrapper.stack(from.toString(), wrapper.defaultAmount);
+            } else {
+                return null;
+            }
+        }
+    }
 }

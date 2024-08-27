@@ -50,15 +50,17 @@ public abstract class KubeJSChemicalBuilder<C extends Chemical<C>,
 		return self();
 	}
 
-	/**
-	 * Tints the texture of this chemical with the given color.
-	 * @param color - The color to tint the texture with, in ARGB format.
-	 * @return This builder.
-	 */
-	public S color(int color) {
-		builder().color(color);
-		return self();
-	}
+// How to implement this?
+
+//	/**
+//	 * Tints the texture of this chemical with the given color.
+//	 * @param color - The color to tint the texture with, in ARGB format.
+//	 * @return This builder.
+//	 */
+//	public S color(int color) {
+//		builder().color(color);
+//		return self();
+//	}
 
 	/**
 	 * Hides this chemical from JEI and the list of creative chemical tanks.
